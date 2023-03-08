@@ -7,11 +7,49 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	getopt "github.com/pborman/getopt/v2"
 )
 
-var Version = "devel"
+var versionDataKeys []string
+var versionDataMap map[string]string
+
+func SetVersion(pairs ...string) {
+	pairsLen := uint(len(pairs))
+	keysLen := pairsLen >> 1
+	if (pairsLen & 1) == 1 {
+		panic(fmt.Errorf("expected a whole number of key / value pairs, but got %d and a half (%d strings total)", keysLen, pairsLen))
+	}
+
+	keys := make([]string, keysLen)
+	values := make(map[string]string, keysLen)
+	seen := make(map[string]string, keysLen)
+
+	for i := uint(0); i < keysLen; i++ {
+		key := pairs[(i<<1)+0]
+		value := pairs[(i<<1)+1]
+		lc := strings.ToLower(key)
+
+		if oldKey, found := seen[lc]; found {
+			oldValue := values[oldKey]
+			var err error
+			if oldKey == key {
+				err = fmt.Errorf("duplicate key %q: conflict between %q and %q", key, oldValue, value)
+			} else {
+				err = fmt.Errorf("duplicate key %q / %q: conflict between %q and %q", oldKey, key, oldValue, value)
+			}
+			panic(err)
+		}
+
+		keys[i] = key
+		values[key] = value
+		seen[lc] = key
+	}
+
+	versionDataKeys = keys
+	versionDataMap = values
+}
 
 func Main(stdout io.Writer, stderr io.Writer, argv []string) int {
 	var (
@@ -44,7 +82,10 @@ func Main(stdout io.Writer, stderr io.Writer, argv []string) int {
 	}
 
 	if isVersion {
-		fmt.Fprintf(stdout, "%s\n", Version)
+		for _, key := range versionDataKeys {
+			value := versionDataMap[key]
+			fmt.Fprintf(stdout, "%s=%s\n", key, value)
+		}
 		return 0
 	}
 
