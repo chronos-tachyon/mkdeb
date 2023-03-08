@@ -232,6 +232,9 @@ func (builder Builder) BuildControlTarball(w io.Writer, manifest *Manifest) erro
 			}
 		}
 		err = builder.writeControlFile(tw, algo.FileName(), false, buf.Bytes())
+		if err != nil {
+			return err
+		}
 		buf.Reset()
 	}
 
